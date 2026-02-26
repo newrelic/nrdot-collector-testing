@@ -1,15 +1,16 @@
-{{- if eq .Values.mode "daemonset" }}
+{{- if eq .Values.mode "deployment" }}
 {{- if not .Values.configMap.existingName }}
 {{- fail "configMap.existingName is required" }}
 {{- end }}
 apiVersion: apps/v1
-kind: DaemonSet
+kind: Deployment
 metadata:
   name: {{ .Release.Name }}-collector
   labels:
     app.kubernetes.io/name: collector
     app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       app.kubernetes.io/name: collector

@@ -19,6 +19,33 @@ configMap:
 # Additional labels to add to pods
 podLabels: {}
 
+# Additional command-line arguments for the collector
+extraArgs: []
+  # - "--log-level=debug"
+  # - "--feature-gates=featureA,featureB"
+
+# Additional environment variables
+extraEnvs: []
+  # - name: MY_ENV_VAR
+  #   value: "my-value"
+  # - name: SECRET_ENV
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: my-secret
+  #       key: secret-key
+
+# Additional volumes
+extraVolumes: []
+  # - name: extra-config
+  #   configMap:
+  #     name: extra-configmap
+
+# Additional volume mounts
+extraVolumeMounts: []
+  # - name: extra-config
+  #   mountPath: /etc/extra
+  #   readOnly: true
+
 # Resource limits and requests
 resources: {}
   # limits:

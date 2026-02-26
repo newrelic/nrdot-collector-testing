@@ -6,3 +6,6 @@ publish-chart.sh
 
 # Claude Code local settings
 settings.local.json
+
+# Temporary files
+.tmp/

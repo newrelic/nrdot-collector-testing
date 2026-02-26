@@ -102,6 +102,73 @@ tests:
           path: spec.template.spec.containers[0].resources.requests.memory
           value: 128Mi
 
+  - it: should set extraArgs when provided
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      extraArgs:
+        - "--log-level=debug"
+        - "--feature-gates=test"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].args[0]
+          value: "--log-level=debug"
+      - equal:
+          path: spec.template.spec.containers[0].args[1]
+          value: "--feature-gates=test"
+
+  - it: should set extraEnvs when provided
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      extraEnvs:
+        - name: MY_VAR
+          value: "my-value"
+        - name: SECRET_VAR
+          valueFrom:
+            secretKeyRef:
+              name: my-secret
+              key: secret-key
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0].name
+          value: MY_VAR
+      - equal:
+          path: spec.template.spec.containers[0].env[0].value
+          value: "my-value"
+      - equal:
+          path: spec.template.spec.containers[0].env[1].name
+          value: SECRET_VAR
+
+  - it: should set extraVolumes and extraVolumeMounts when provided
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      extraVolumes:
+        - name: extra-config
+          configMap:
+            name: extra-configmap
+      extraVolumeMounts:
+        - name: extra-config
+          mountPath: /etc/extra
+          readOnly: true
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[1].name
+          value: extra-config
+      - equal:
+          path: spec.template.spec.volumes[1].configMap.name
+          value: extra-configmap
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[1].name
+          value: extra-config
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[1].mountPath
+          value: /etc/extra
+
   - it: should fail when configMap.existingName is not set
     set:
       mode: daemonset
