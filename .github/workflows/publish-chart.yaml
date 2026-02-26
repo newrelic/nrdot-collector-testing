@@ -1,0 +1,43 @@
+name: Publish Helm Chart
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'helm/collector/**'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.19.2'
+
+      - name: Log in to GitHub Container Registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Package and push chart
+        run: |
+          cd helm
+          CHART_VERSION=$(grep '^version:' collector/Chart.yaml | awk '{print $2}')
+
+          # Check if version already exists
+          if helm pull oci://ghcr.io/${GITHUB_REPOSITORY}/test-collector --version ${CHART_VERSION} 2>/dev/null; then
+            echo "Version ${CHART_VERSION} already exists in the registry, skipping publish"
+            exit 0
+          fi
+
+          echo "Publishing version ${CHART_VERSION}..."
+          helm package collector
+          helm push test-collector-${CHART_VERSION}.tgz oci://ghcr.io/${GITHUB_REPOSITORY}

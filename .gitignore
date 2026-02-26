@@ -1,0 +1,8 @@
+# Local scripts with credentials
+publish-chart.sh
+
+# Helm package files
+*.tgz
+
+# Claude Code local settings
+settings.local.json

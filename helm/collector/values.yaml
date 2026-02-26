@@ -1,0 +1,29 @@
+# Deployment mode: daemonset or deployment
+mode: daemonset
+
+# Number of replicas (only used when mode is deployment)
+replicaCount: 1
+
+image:
+  repository: newrelic/nrdot-collector
+  pullPolicy: IfNotPresent
+  tag: "1.11.0"
+
+# ConfigMap containing the collector configuration
+configMap:
+  # Name of an existing ConfigMap
+  existingName: ""
+  # Key in the ConfigMap that contains the collector config
+  key: "config.yaml"
+
+# Additional labels to add to pods
+podLabels: {}
+
+# Resource limits and requests
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
