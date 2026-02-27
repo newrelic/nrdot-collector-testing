@@ -18,9 +18,25 @@ spec:
     args:
       {{- toYaml .Values.extraArgs | nindent 6 }}
     {{- end }}
-    {{- if or .Values.extraEnvs }}
+    {{- if or .Values.extraEnvs .Values.secret.otlpEndpoint .Values.secret.licenseKey }}
     env:
+      {{- if .Values.secret.otlpEndpoint }}
+      - name: OTEL_EXPORTER_OTLP_ENDPOINT
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Release.Name }}-collector-secret
+            key: otlp-endpoint
+      {{- end }}
+      {{- if .Values.secret.licenseKey }}
+      - name: NEW_RELIC_LICENSE_KEY
+        valueFrom:
+          secretKeyRef:
+            name: {{ .Release.Name }}-collector-secret
+            key: license-key
+      {{- end }}
+      {{- if .Values.extraEnvs }}
       {{- toYaml .Values.extraEnvs | nindent 6 }}
+      {{- end }}
     {{- end }}
     {{- if .Values.resources }}
     resources:

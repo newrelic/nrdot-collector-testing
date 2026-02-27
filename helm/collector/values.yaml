@@ -24,6 +24,14 @@ extraArgs: []
   # - "--log-level=debug"
   # - "--feature-gates=featureA,featureB"
 
+# Secret configuration for OTLP endpoint and New Relic license key
+# These will be injected as OTEL_EXPORTER_OTLP_ENDPOINT and NEW_RELIC_LICENSE_KEY env vars
+secret:
+  # OTLP endpoint URL
+  otlpEndpoint: ""
+  # New Relic license key
+  licenseKey: ""
+
 # Additional environment variables
 extraEnvs: []
   # - name: MY_ENV_VAR
