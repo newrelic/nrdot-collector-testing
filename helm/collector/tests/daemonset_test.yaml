@@ -1,0 +1,177 @@
+suite: test daemonset
+templates:
+  - daemonset.yaml
+tests:
+  - it: should create a DaemonSet when mode is daemonset
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+    asserts:
+      - isKind:
+          of: DaemonSet
+      - equal:
+          path: metadata.name
+          value: RELEASE-NAME-collector
+
+  - it: should use the correct image
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      image:
+        repository: custom/collector
+        tag: "1.2.3"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: custom/collector:1.2.3
+
+  - it: should reference the existing ConfigMap with default key
+    set:
+      mode: daemonset
+      configMap:
+        existingName: my-config
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].configMap.name
+          value: my-config
+      - equal:
+          path: spec.template.spec.volumes[0].configMap.items[0].key
+          value: config.yaml
+      - equal:
+          path: spec.template.spec.volumes[0].configMap.items[0].path
+          value: config.yaml
+
+  - it: should reference the existing ConfigMap with custom key
+    set:
+      mode: daemonset
+      configMap:
+        existingName: my-config
+        key: relay
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[0].configMap.name
+          value: my-config
+      - equal:
+          path: spec.template.spec.volumes[0].configMap.items[0].key
+          value: relay
+      - equal:
+          path: spec.template.spec.volumes[0].configMap.items[0].path
+          value: config.yaml
+
+  - it: should apply pod labels
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      podLabels:
+        app: collector
+        version: v1
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels.app
+          value: collector
+      - equal:
+          path: spec.template.metadata.labels.version
+          value: v1
+
+  - it: should set resources when provided
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      resources:
+        limits:
+          cpu: 200m
+          memory: 256Mi
+        requests:
+          cpu: 100m
+          memory: 128Mi
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.cpu
+          value: 200m
+      - equal:
+          path: spec.template.spec.containers[0].resources.limits.memory
+          value: 256Mi
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.cpu
+          value: 100m
+      - equal:
+          path: spec.template.spec.containers[0].resources.requests.memory
+          value: 128Mi
+
+  - it: should set extraArgs when provided
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      extraArgs:
+        - "--log-level=debug"
+        - "--feature-gates=test"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].args[0]
+          value: "--log-level=debug"
+      - equal:
+          path: spec.template.spec.containers[0].args[1]
+          value: "--feature-gates=test"
+
+  - it: should set extraEnvs when provided
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      extraEnvs:
+        - name: MY_VAR
+          value: "my-value"
+        - name: SECRET_VAR
+          valueFrom:
+            secretKeyRef:
+              name: my-secret
+              key: secret-key
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].env[0].name
+          value: MY_VAR
+      - equal:
+          path: spec.template.spec.containers[0].env[0].value
+          value: "my-value"
+      - equal:
+          path: spec.template.spec.containers[0].env[1].name
+          value: SECRET_VAR
+
+  - it: should set extraVolumes and extraVolumeMounts when provided
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      extraVolumes:
+        - name: extra-config
+          configMap:
+            name: extra-configmap
+      extraVolumeMounts:
+        - name: extra-config
+          mountPath: /etc/extra
+          readOnly: true
+    asserts:
+      - equal:
+          path: spec.template.spec.volumes[1].name
+          value: extra-config
+      - equal:
+          path: spec.template.spec.volumes[1].configMap.name
+          value: extra-configmap
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[1].name
+          value: extra-config
+      - equal:
+          path: spec.template.spec.containers[0].volumeMounts[1].mountPath
+          value: /etc/extra
+
+  - it: should fail when configMap.existingName is not set
+    set:
+      mode: daemonset
+    asserts:
+      - failedTemplate:
+          errorMessage: "configMap.existingName is required"

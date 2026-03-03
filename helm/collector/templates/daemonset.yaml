@@ -1,0 +1,19 @@
+{{- if eq .Values.mode "daemonset" }}
+{{- if not .Values.configMap.existingName }}
+{{- fail "configMap.existingName is required" }}
+{{- end }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Release.Name }}-collector
+  labels:
+    app.kubernetes.io/name: collector
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: collector
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    {{- include "collector.podTemplate" . | nindent 4 }}
+{{- end }}
