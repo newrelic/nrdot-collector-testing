@@ -18,7 +18,7 @@ spec:
     args:
       {{- toYaml .Values.extraArgs | nindent 6 }}
     {{- end }}
-    {{- if or .Values.extraEnvs .Values.secret.otlpEndpoint .Values.secret.licenseKey }}
+    {{- if or .Values.extraEnvs .Values.secret.otlpEndpoint .Values.secret.licenseKey .Values.scenarioTag .Values.serviceName }}
     env:
       {{- if .Values.secret.otlpEndpoint }}
       - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -33,6 +33,14 @@ spec:
           secretKeyRef:
             name: {{ .Release.Name }}-collector-secret
             key: license-key
+      {{- end }}
+      {{- if .Values.scenarioTag }}
+      - name: SCENARIO_TAG
+        value: {{ .Values.scenarioTag | quote }}
+      {{- end }}
+      {{- if .Values.serviceName }}
+      - name: SERVICE_NAME
+        value: {{ .Values.serviceName | quote }}
       {{- end }}
       {{- if .Values.extraEnvs }}
       {{- toYaml .Values.extraEnvs | nindent 6 }}

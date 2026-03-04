@@ -32,6 +32,12 @@ secret:
   # New Relic license key
   licenseKey: ""
 
+# Unique value commonly used to distinguish telemetry from concurrent test runs
+scenarioTag: ""
+
+# Service name for the collector
+serviceName: ""
+
 # Additional environment variables
 extraEnvs: []
   # - name: MY_ENV_VAR
