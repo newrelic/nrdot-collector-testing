@@ -8,6 +8,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   lint-test:
     name: Lint and test charts
