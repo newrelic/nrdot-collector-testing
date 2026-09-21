@@ -1,4 +1,4 @@
-name: Telemetrygen Integration Test
+name: Validate TelemetryGen
 
 on:
   pull_request:
@@ -67,7 +67,7 @@ jobs:
       - name: Wait for telemetry to arrive
         run: sleep 45
 
-      - name: Assert each signal reached the collector
+      - name: Assert Metric, Log, and Trace signals reached the collector
         run: |
           logs=$(kubectl logs -l app.kubernetes.io/name=collector -c collector --tail=-1)
           failed=0
@@ -87,4 +87,3 @@ jobs:
           kubectl get pods -o wide
           kubectl describe pods -l app.kubernetes.io/name=collector
           kubectl logs -l app.kubernetes.io/name=collector --all-containers --tail=100
-
