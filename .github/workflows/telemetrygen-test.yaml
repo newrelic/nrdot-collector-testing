@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   telemetrygen:
-    name: Verify telemetrygen produces telemetry
+    name: Verify telemetrygen produces telemetry in helm chart
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
