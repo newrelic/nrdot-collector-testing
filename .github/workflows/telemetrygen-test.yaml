@@ -1,4 +1,4 @@
-name: Validate TelemetryGen
+name: Validate telemetrygen
 
 on:
   pull_request:
@@ -61,6 +61,7 @@ jobs:
           helm install telemetrygen-test helm/collector \
             --set mode=deployment \
             --set configMap.existingName=collector-config \
+            --set 'extraArgs[0]=--config=/etc/otelcol/config.yaml' \
             --set telemetrygen.enabled=true \
             --wait --timeout 3m
 
