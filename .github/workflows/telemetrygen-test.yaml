@@ -72,8 +72,8 @@ jobs:
         run: |
           logs=$(kubectl logs -l app.kubernetes.io/name=collector -c collector --tail=-1)
           failed=0
-          for signal in Metrics Logs Traces; do
-            if echo "$logs" | grep -q "${signal}{"; then
+          for signal in metrics logs traces; do
+            if echo "$logs" | grep -q "\"otelcol.signal\": \"${signal}\""; then
               echo "ok: $signal received"
             else
               echo "FAIL: no $signal in collector logs"
