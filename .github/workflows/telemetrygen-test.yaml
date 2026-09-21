@@ -1,0 +1,90 @@
+name: Telemetrygen Integration Test
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  telemetrygen:
+    name: Verify telemetrygen produces telemetry
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: 'v3.19.2'
+
+      - name: Create cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: telemetrygen-test
+
+      - name: Create basic collector config
+        run: |
+          cat <<'EOF' > /tmp/config.yaml
+          receivers:
+            otlp:
+              protocols:
+                grpc:
+                  endpoint: 0.0.0.0:4317
+                http:
+                  endpoint: 0.0.0.0:4318
+          exporters:
+            debug:
+              verbosity: basic
+          service:
+            pipelines:
+              metrics:
+                receivers: [otlp]
+                exporters: [debug]
+              logs:
+                receivers: [otlp]
+                exporters: [debug]
+              traces:
+                receivers: [otlp]
+                exporters: [debug]
+          EOF
+          kubectl create configmap collector-config --from-file=config.yaml=/tmp/config.yaml
+
+      - name: Install chart
+        run: |
+          helm install telemetrygen-test helm/collector \
+            --set mode=deployment \
+            --set configMap.existingName=collector-config \
+            --set telemetrygen.enabled=true \
+            --wait --timeout 3m
+
+      - name: Wait for telemetry to arrive
+        run: sleep 45
+
+      - name: Assert each signal reached the collector
+        run: |
+          logs=$(kubectl logs -l app.kubernetes.io/name=collector -c collector --tail=-1)
+          failed=0
+          for signal in Metrics Logs Traces; do
+            if echo "$logs" | grep -q "${signal}{"; then
+              echo "ok: $signal received"
+            else
+              echo "FAIL: no $signal in collector logs"
+              failed=1
+            fi
+          done
+          exit $failed
+
+      - name: Dump state on failure
+        if: failure()
+        run: |
+          kubectl get pods -o wide
+          kubectl describe pods -l app.kubernetes.io/name=collector
+          kubectl logs -l app.kubernetes.io/name=collector --all-containers --tail=100
+

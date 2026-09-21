@@ -93,3 +93,20 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "configMap.existingName is required"
+
+  - it: should add telemetrygen containers when enabled
+    set:
+      mode: deployment
+      configMap:
+        existingName: test-configmap
+      telemetrygen:
+        enabled: true
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.containers
+          count: 4
+      - contains:
+          path: spec.template.spec.containers
+          content:
+            name: telemetrygen-traces
+          any: true

@@ -58,6 +58,18 @@ spec:
     {{- if .Values.extraVolumeMounts }}
     {{- toYaml .Values.extraVolumeMounts | nindent 4 }}
     {{- end }}
+  {{- if .Values.telemetrygen.enabled }}
+  {{- range $signal, $args := .Values.telemetrygen.signals }}
+  - name: telemetrygen-{{ $signal }}
+    image: {{ $.Values.telemetrygen.image.repository }}:{{ $.Values.telemetrygen.image.tag }}
+    imagePullPolicy: {{ $.Values.telemetrygen.image.pullPolicy }}
+    args:
+    - {{ $signal }}
+    {{- if $args }}
+    {{- toYaml $args | nindent 4 }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
   volumes:
   - name: config
     configMap:
