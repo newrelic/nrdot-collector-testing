@@ -71,7 +71,7 @@ spec:
     - --otlp-http
     - --otlp-endpoint=localhost:4318
     {{- end }}
-    {{- if $config.insecure }}
+    {{- if or (not (hasKey $config "insecure")) $config.insecure }}
     - --otlp-insecure
     {{- end }}
     - --otlp-attributes=service.name="telemetrygen-{{ $signal }}"

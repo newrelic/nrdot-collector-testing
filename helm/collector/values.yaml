@@ -33,15 +33,15 @@ telemetrygen:
   signals: {}
     # metrics:
     #   protocol: http # grpc
-    #   insecure: true
+    #   insecure: true # false
     #   extraArgs: []
     # logs:
     #   protocol: http # grpc
-    #   insecure: true
+    #   insecure: true # false
     #   extraArgs: []
     # traces:
     #   protocol: http # grpc
-    #   insecure: true
+    #   insecure: true # false
     #   extraArgs: []
 
 # Secret configuration for OTLP endpoint and New Relic license key
