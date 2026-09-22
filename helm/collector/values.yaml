@@ -26,34 +26,21 @@ extraArgs: []
 
 # telemetrygen sidecars for generating synthetic telemetry
 telemetrygen:
-  enabled: false
   image:
     repository: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen
     pullPolicy: IfNotPresent
     tag: "v0.130.0"
-  signals:
-    # Set any signal to null to disable it
-    metrics:
-      - --otlp-insecure
-      - --otlp-http
-      - "--otlp-endpoint=localhost:4318"
-      - "--otlp-attributes=service.name=\"telemetrygen-metrics\""
-      - --rate=10
-      - --duration=5m
-    logs:
-      - --otlp-insecure
-      - "--otlp-endpoint=localhost:4317"
-      - "--otlp-attributes=service.name=\"telemetrygen-logs\""
-      - --rate=10
-      - --duration=5m
-      - "--body=\"short log\""
-    traces:
-      - --otlp-insecure
-      - --otlp-http
-      - "--otlp-endpoint=localhost:4318"
-      - "--otlp-attributes=service.name=\"telemetrygen-traces\""
-      - --rate=5
-      - --duration=5m
+  signals: {}
+    # metrics:
+    #   protocol: grpc
+    #   extraArgs:
+    #     - --otlp-insecure
+    # logs:
+    #   protocol: grpc # http
+    #   extraArgs: []
+    # traces:
+    #   protocol: grpc # http
+    #   extraArgs: []
 
 # Secret configuration for OTLP endpoint and New Relic license key
 # These will be injected as OTEL_EXPORTER_OTLP_ENDPOINT and NEW_RELIC_LICENSE_KEY env vars
