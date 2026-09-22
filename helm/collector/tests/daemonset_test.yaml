@@ -272,3 +272,34 @@ tests:
             - --otlp-attributes=service.name="telemetrygen-traces"
             - --rate=10
             - --duration=5m
+
+  - it: should not set otlp-http when protocol is grpc
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      telemetrygen:
+        signals:
+          traces:
+            protocol: grpc
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[1].args
+          content: --otlp-http
+      - contains:
+          path: spec.template.spec.containers[1].args
+          content: --otlp-endpoint=localhost:4317
+
+  - it: should not set otlp-insecure when insecure is false
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      telemetrygen:
+        signals:
+          traces:
+            insecure: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[1].args
+          content: --otlp-insecure
