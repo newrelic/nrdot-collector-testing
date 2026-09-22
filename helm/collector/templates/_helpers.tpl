@@ -58,6 +58,32 @@ spec:
     {{- if .Values.extraVolumeMounts }}
     {{- toYaml .Values.extraVolumeMounts | nindent 4 }}
     {{- end }}
+  {{- range $signal, $config := .Values.telemetrygen.signals }}
+  {{- $config = $config | default dict }}
+  - name: telemetrygen-{{ $signal }}
+    image: {{ $.Values.telemetrygen.image.repository }}:{{ $.Values.telemetrygen.image.tag }}
+    imagePullPolicy: {{ $.Values.telemetrygen.image.pullPolicy }}
+    args:
+    - {{ $signal }}
+    {{- if eq ($config.protocol | default "http") "grpc" }}
+    - --otlp-endpoint=localhost:4317
+    {{- else }}
+    - --otlp-http
+    - --otlp-endpoint=localhost:4318
+    {{- end }}
+    {{- if or (not (hasKey $config "insecure")) $config.insecure }}
+    - --otlp-insecure
+    {{- end }}
+    - --otlp-attributes=service.name="telemetrygen-{{ $signal }}"
+    - --rate=10
+    - --duration=5m
+    {{- if eq $signal "logs" }}
+    - "--body=short log"
+    {{- end }}
+    {{- if $config.extraArgs }}
+    {{- toYaml $config.extraArgs | nindent 4 }}
+    {{- end }}
+  {{- end }}
   volumes:
   - name: config
     configMap:

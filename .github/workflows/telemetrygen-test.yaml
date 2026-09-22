@@ -1,0 +1,104 @@
+name: Validate telemetrygen
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  telemetrygen:
+    name: Verify telemetrygen produces telemetry in helm chart
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: 'v3.19.2'
+
+      - name: Create cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: telemetrygen-test
+
+      - name: Create basic collector config
+        run: |
+          cat <<'EOF' > /tmp/config.yaml
+          receivers:
+            otlp:
+              protocols:
+                grpc:
+                  endpoint: 0.0.0.0:4317
+                http:
+                  endpoint: 0.0.0.0:4318
+          exporters:
+            debug:
+              verbosity: detailed
+          service:
+            pipelines:
+              metrics:
+                receivers: [otlp]
+                exporters: [debug]
+              logs:
+                receivers: [otlp]
+                exporters: [debug]
+              traces:
+                receivers: [otlp]
+                exporters: [debug]
+          EOF
+          kubectl create configmap collector-config --from-file=config.yaml=/tmp/config.yaml
+
+      - name: Install chart
+        run: |
+          helm install telemetrygen-test helm/collector \
+            --set mode=deployment \
+            --set configMap.existingName=collector-config \
+            --set 'extraArgs[0]=--config=/etc/otelcol/config.yaml' \
+            --set-json 'telemetrygen.signals={"metrics":{},"logs":{},"traces":{"extraArgs":["--rate=5"]}}' \
+            --set-json 'telemetrygen.signals.metrics.extraArgs=["--otlp-attributes=service.name=\"override-works\""]' \
+            --wait --timeout 3m
+
+      - name: Wait for telemetry to arrive
+        run: sleep 45
+
+      - name: Assert Metric, Log, and Trace signals reached the collector
+        run: |
+          logs=$(kubectl logs -l app.kubernetes.io/name=collector -c collector --tail=-1)
+          failed=0
+          for signal in metrics logs traces; do
+            if echo "$logs" | grep -q "\"otelcol.signal\": \"${signal}\""; then
+              echo "ok: $signal received"
+            else
+              echo "FAIL: no $signal in collector logs"
+              failed=1
+            fi
+          done
+          exit $failed
+
+      - name: Assert extraArgs overrides defaults
+        run: |
+          failed=0
+          if ! kubectl logs -l app.kubernetes.io/name=collector -c telemetrygen-traces --tail=-1 | grep -q '"per-second": 5'; then
+            echo "FAIL: telemetrygen-traces did not resolve rate to 5"
+            failed=1
+          fi
+          if ! kubectl logs -l app.kubernetes.io/name=collector -c collector --tail=-1 | grep -q "override-works"; then
+            echo "FAIL: no override-works service.name in collector logs"
+            failed=1
+          fi
+          exit $failed
+
+      - name: Dump state on failure
+        if: failure()
+        run: |
+          kubectl get pods -o wide
+          kubectl describe pods -l app.kubernetes.io/name=collector
+          kubectl logs -l app.kubernetes.io/name=collector --all-containers --tail=100

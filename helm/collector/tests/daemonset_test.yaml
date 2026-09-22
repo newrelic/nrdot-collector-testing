@@ -175,3 +175,131 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "configMap.existingName is required"
+
+  - it: should not add telemetrygen containers by default
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.containers
+          count: 1
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: collector
+
+  - it: should use the correct telemetrygen image
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      telemetrygen:
+        image:
+          repository: custom/telemetrygen
+          tag: "1.2.3"
+        signals:
+          traces:
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[1].image
+          value: custom/telemetrygen:1.2.3
+
+  - it: should add a telemetrygen container for each configured signal
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      telemetrygen:
+        signals:
+          metrics:
+          logs:
+          traces:
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.containers
+          count: 4
+      - contains:
+          path: spec.template.spec.containers
+          content:
+            name: telemetrygen-logs
+          any: true
+      - contains:
+          path: spec.template.spec.containers
+          content:
+            name: telemetrygen-metrics
+          any: true
+      - contains:
+          path: spec.template.spec.containers
+          content:
+            name: telemetrygen-traces
+          any: true
+
+  - it: should only add telemetrygen containers for the configured signals
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      telemetrygen:
+        signals:
+          traces:
+            extraArgs:
+              - --rate=5
+    asserts:
+      - lengthEqual:
+          path: spec.template.spec.containers
+          count: 2
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: telemetrygen-traces
+
+  - it: should derive defaults for a signal with no configuration
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      telemetrygen:
+        signals:
+          traces:
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[1].args
+          value:
+            - traces
+            - --otlp-http
+            - --otlp-endpoint=localhost:4318
+            - --otlp-insecure
+            - --otlp-attributes=service.name="telemetrygen-traces"
+            - --rate=10
+            - --duration=5m
+
+  - it: should not set otlp-http when protocol is grpc
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      telemetrygen:
+        signals:
+          traces:
+            protocol: grpc
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[1].args
+          content: --otlp-http
+      - contains:
+          path: spec.template.spec.containers[1].args
+          content: --otlp-endpoint=localhost:4317
+
+  - it: should not set otlp-insecure when insecure is false
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      telemetrygen:
+        signals:
+          traces:
+            insecure: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[1].args
+          content: --otlp-insecure
