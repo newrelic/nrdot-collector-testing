@@ -62,7 +62,10 @@ jobs:
             --set mode=deployment \
             --set configMap.existingName=collector-config \
             --set 'extraArgs[0]=--config=/etc/otelcol/config.yaml' \
-            --set telemetrygen.enabled=true \
+            --set 'telemetrygen.signals.metrics.protocol=http' \
+            --set 'telemetrygen.signals.metrics.extraArgs[0]=--otlp-insecure' \
+            --set 'telemetrygen.signals.logs.extraArgs[0]=--otlp-insecure' \
+            --set 'telemetrygen.signals.traces.extraArgs[0]=--otlp-insecure' \
             --wait --timeout 3m
 
       - name: Wait for telemetry to arrive
