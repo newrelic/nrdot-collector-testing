@@ -266,7 +266,8 @@ tests:
           path: spec.template.spec.containers[1].args
           value:
             - traces
-            - --otlp-endpoint=localhost:4317
+            - --otlp-http
+            - --otlp-endpoint=localhost:4318
             - --otlp-attributes=service.name="telemetrygen-traces"
             - --rate=10
             - --duration=5m
@@ -310,6 +311,54 @@ tests:
             - --rate=10
             - --duration=5m
 
+  - it: should not add otlp-insecure by default
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      telemetrygen:
+        signals:
+          traces:
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[1].args
+          content: --otlp-insecure
+
+  - it: should add otlp-insecure when insecure is true
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      telemetrygen:
+        signals:
+          traces:
+            insecure: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[1].args
+          value:
+            - traces
+            - --otlp-http
+            - --otlp-endpoint=localhost:4318
+            - --otlp-insecure
+            - --otlp-attributes=service.name="telemetrygen-traces"
+            - --rate=10
+            - --duration=5m
+
+  - it: should not add otlp-insecure when insecure is false
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      telemetrygen:
+        signals:
+          traces:
+            insecure: false
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[1].args
+          content: --otlp-insecure
+
   - it: should add a default body for logs only
     set:
       mode: daemonset
@@ -323,7 +372,8 @@ tests:
           path: spec.template.spec.containers[1].args
           value:
             - logs
-            - --otlp-endpoint=localhost:4317
+            - --otlp-http
+            - --otlp-endpoint=localhost:4318
             - --otlp-attributes=service.name="telemetrygen-logs"
             - --rate=10
             - --duration=5m

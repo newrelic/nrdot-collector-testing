@@ -65,11 +65,14 @@ spec:
     imagePullPolicy: {{ $.Values.telemetrygen.image.pullPolicy }}
     args:
     - {{ $signal }}
-    {{- if eq ($config.protocol | default "grpc") "http" }}
+    {{- if eq ($config.protocol | default "http") "grpc" }}
+    - --otlp-endpoint=localhost:4317
+    {{- else }}
     - --otlp-http
     - --otlp-endpoint=localhost:4318
-    {{- else }}
-    - --otlp-endpoint=localhost:4317
+    {{- end }}
+    {{- if $config.insecure }}
+    - --otlp-insecure
     {{- end }}
     - --otlp-attributes=service.name="telemetrygen-{{ $signal }}"
     - --rate=10
