@@ -32,7 +32,7 @@ telemetrygen:
     tag: "v0.130.0"
   signals: {}
     # metrics:
-    #   protocol: http # grpc
+    #   protocol: http # grpc ==> Also sets the `--otlp-endpoint` port to 4318 or 4317 respectively
     #   insecure: true # false
     #   extraArgs: []
     # logs:
@@ -44,7 +44,7 @@ telemetrygen:
     #   insecure: true # false
     #   extraArgs: []
 
-# Secret configuration for OTLP endpoint and New Relic license key
+# Secret configuration for collector OTLP endpoint and New Relic license key
 # These will be injected as OTEL_EXPORTER_OTLP_ENDPOINT and NEW_RELIC_LICENSE_KEY env vars
 secret:
   # OTLP endpoint URL
