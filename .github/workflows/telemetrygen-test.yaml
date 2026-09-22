@@ -41,7 +41,7 @@ jobs:
                   endpoint: 0.0.0.0:4318
           exporters:
             debug:
-              verbosity: basic
+              verbosity: detailed
           service:
             pipelines:
               metrics:
@@ -62,7 +62,8 @@ jobs:
             --set mode=deployment \
             --set configMap.existingName=collector-config \
             --set 'extraArgs[0]=--config=/etc/otelcol/config.yaml' \
-            --set-json 'telemetrygen.signals={"metrics":{},"logs":{},"traces":{}}' \
+            --set-json 'telemetrygen.signals={"metrics":{},"logs":{},"traces":{"extraArgs":["--rate=5"]}}' \
+            --set-json 'telemetrygen.signals.metrics.extraArgs=["--otlp-attributes=service.name=\"override-works\""]' \
             --wait --timeout 3m
 
       - name: Wait for telemetry to arrive
@@ -80,6 +81,19 @@ jobs:
               failed=1
             fi
           done
+          exit $failed
+
+      - name: Assert extraArgs overrides defaults
+        run: |
+          failed=0
+          if ! kubectl logs -l app.kubernetes.io/name=collector -c telemetrygen-traces --tail=-1 | grep -q '"per-second": 5'; then
+            echo "FAIL: telemetrygen-traces did not resolve rate to 5"
+            failed=1
+          fi
+          if ! kubectl logs -l app.kubernetes.io/name=collector -c collector --tail=-1 | grep -q "override-works"; then
+            echo "FAIL: no override-works service.name in collector logs"
+            failed=1
+          fi
           exit $failed
 
       - name: Dump state on failure
