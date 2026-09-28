@@ -10,6 +10,43 @@ metadata:
     {{ $key }}: {{ $value }}
 {{- end }}
 spec:
+  {{- if .Values.weaver.registry.existingName }}
+  {{- if semverCompare "<1.29-0" .Capabilities.KubeVersion.Version }}
+  {{- fail "weaver runs as a native sidecar in init container which requires k8s >= 1.29" }}
+  {{- end }}
+  {{- $liveCheck := .Values.weaver.liveCheck | default dict }}
+  # native sidecar: starts before the collector and runs for the pod's lifetime
+  initContainers:
+  - name: weaver
+    image: {{ .Values.weaver.image.repository }}:{{ .Values.weaver.image.tag }}
+    imagePullPolicy: {{ .Values.weaver.image.pullPolicy }}
+    restartPolicy: Always
+    args:
+    - registry
+    - live-check
+    - --registry=/registry
+    {{- with .Values.weaver.registry.configKey }}
+    - --config=/registry/{{ . }}
+    {{- end }}
+    - --format={{ $liveCheck.format | default "json" }}
+    - --output={{ $liveCheck.output | default "http" }}
+    - --otlp-grpc-address=127.0.0.1
+    - --otlp-grpc-port={{ $liveCheck.otlpGrpcPort | default 5123 }}
+    - --admin-port={{ $liveCheck.adminPort | default 4320 }}
+    - --inactivity-timeout={{ $liveCheck.inactivityTimeout | default 0 }}
+    {{- if $liveCheck.extraArgs }}
+    {{- toYaml $liveCheck.extraArgs | nindent 4 }}
+    {{- end }}
+    ports:
+    - name: weaver-otlp
+      containerPort: {{ $liveCheck.otlpGrpcPort | default 5123 }}
+    - name: weaver-admin
+      containerPort: {{ $liveCheck.adminPort | default 4320 }}
+    volumeMounts:
+    - name: weaver-registry
+      mountPath: /registry
+      readOnly: true
+  {{- end }}
   containers:
   - name: collector
     image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
@@ -91,6 +128,11 @@ spec:
       items:
       - key: {{ .Values.configMap.key }}
         path: config.yaml
+  {{- if .Values.weaver.registry.existingName }}
+  - name: weaver-registry
+    configMap:
+      name: {{ .Values.weaver.registry.existingName }}
+  {{- end }}
   {{- if .Values.extraVolumes }}
   {{- toYaml .Values.extraVolumes | nindent 2 }}
   {{- end }}

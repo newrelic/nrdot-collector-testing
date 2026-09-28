@@ -29,7 +29,7 @@ telemetrygen:
   image:
     repository: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen
     pullPolicy: IfNotPresent
-    tag: "v0.130.0"
+    tag: "v0.161.0"
   signals: {}
     # metrics:
     #   protocol: http # grpc ==> Also sets the `--otlp-endpoint` port to 4318 or 4317 respectively
@@ -43,6 +43,26 @@ telemetrygen:
     #   protocol: http # grpc
     #   insecure: true # false
     #   extraArgs: []
+
+# weaver live-check sidecar for validating the collector's telemetry against a registry
+weaver:
+  image:
+    repository: otel/weaver
+    pullPolicy: IfNotPresent
+    tag: "v0.26.1"
+  # ConfigMap containing the registry yaml files and weaver config; every key is mounted as a file in the registry directory
+  registry:
+    # Name of an existing ConfigMap; the sidecar is only added when set
+    existingName: ""
+    # Key in the ConfigMap that contains the weaver config; --config is omitted when empty
+    configKey: ".weaver.toml"
+  liveCheck: {}
+    # otlpGrpcPort: 5123 # OTLP receiver for telemetry (weaver only accepts GRPC)
+    # adminPort: 4320 # Admin API port (post /stop to generate report)
+    # format: json # yaml/jsonl/<template name> ==> Report format
+    # output: http # none/<path> ==>  Report destination; http returns as response to POST
+    # inactivityTimeout: 0 # seconds w/o telemetry before stopping; 0 is infinite.
+    # extraArgs: []
 
 # Secret configuration for collector OTLP endpoint and New Relic license key
 # These will be injected as OTEL_EXPORTER_OTLP_ENDPOINT and NEW_RELIC_LICENSE_KEY env vars
