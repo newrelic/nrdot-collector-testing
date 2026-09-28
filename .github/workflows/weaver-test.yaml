@@ -1,0 +1,110 @@
+name: Validate weaver
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  weaver:
+    name: Verify weaver live-check runs in helm chart
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: 'v3.19.2'
+
+      - name: Create cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: weaver-test
+
+      - name: Create basic collector config
+        run: |
+          cat <<'EOF' > /tmp/config.yaml
+          receivers:
+            otlp:
+              protocols:
+                http:
+                  endpoint: 127.0.0.1:4318
+          exporters:
+            otlp:
+              endpoint: 127.0.0.1:5123
+              compression: none
+              tls:
+                insecure: true
+          service:
+            pipelines:
+              metrics:
+                receivers: [otlp]
+                exporters: [otlp]
+          EOF
+
+      - name: Create test registry
+        run: |
+          mkdir -p /tmp/registry
+          # matches telemetrygen's defaults
+          cat <<'EOF' > /tmp/registry/registry.yaml
+          groups:
+            - id: registry.service
+              type: attribute_group
+              brief: "Service attributes."
+              attributes:
+                - id: service.name
+                  type: string
+                  stability: stable
+                  brief: "Logical name of the service."
+                  examples: ["telemetrygen-metrics"]
+
+            - id: metric.gen
+              type: metric
+              metric_name: gen
+              stability: stable
+              brief: "telemetrygen's default gauge."
+              instrument: gauge
+              unit: ""
+          EOF
+
+      - name: Install chart
+        run: |
+          kubectl create configmap collector-config --from-file=config.yaml=/tmp/config.yaml
+          kubectl create configmap weaver-registry --from-file=/tmp/registry
+          helm install weaver-test helm/collector \
+            --set mode=deployment \
+            --set configMap.existingName=collector-config \
+            --set 'extraArgs[0]=--config=/etc/otelcol/config.yaml' \
+            --set weaver.registry.existingName=weaver-registry \
+            --set weaver.registry.configKey="" \
+            --set-json 'telemetrygen.signals={"metrics":{}}' \
+            --wait --timeout 3m
+
+      - name: Port-forward weaver admin port
+        run: kubectl port-forward deploy/weaver-test-collector 4320:4320 &
+
+      - name: Wait for telemetry to arrive
+        run: sleep 20
+
+      - name: Stop weaver and fetch report
+        run: curl -sS --fail-with-body -X POST http://localhost:4320/stop | jq . > /tmp/report.json
+
+      - name: Assert full coverage and no violations
+        run: |
+          jq -e '.statistics.registry_coverage >= 1.0' /tmp/report.json
+          jq -e '(.statistics.advice_level_counts.violation // 0) == 0' /tmp/report.json
+
+      - name: Dump state on failure
+        if: failure()
+        run: |
+          kubectl get pods -o wide
+          kubectl describe pods -l app.kubernetes.io/name=collector
+          kubectl logs -l app.kubernetes.io/name=collector --all-containers --prefix --tail=100

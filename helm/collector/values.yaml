@@ -29,7 +29,7 @@ telemetrygen:
   image:
     repository: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen
     pullPolicy: IfNotPresent
-    tag: "v0.130.0"
+    tag: "v0.161.0"
   signals: {}
     # metrics:
     #   protocol: http # grpc ==> Also sets the `--otlp-endpoint` port to 4318 or 4317 respectively
