@@ -84,6 +84,37 @@ spec:
     {{- toYaml $config.extraArgs | nindent 4 }}
     {{- end }}
   {{- end }}
+  {{- if .Values.weaver.registry.existingName }}
+  {{- $liveCheck := .Values.weaver.liveCheck | default dict }}
+  - name: weaver
+    image: {{ .Values.weaver.image.repository }}:{{ .Values.weaver.image.tag }}
+    imagePullPolicy: {{ .Values.weaver.image.pullPolicy }}
+    args:
+    - registry
+    - live-check
+    - --registry=/registry
+    {{- with .Values.weaver.registry.configKey }}
+    - --config=/registry/{{ . }}
+    {{- end }}
+    - --format={{ $liveCheck.format | default "json" }}
+    - --output={{ $liveCheck.output | default "http" }}
+    - --otlp-grpc-address=127.0.0.1
+    - --otlp-grpc-port={{ $liveCheck.otlpGrpcPort | default 5123 }}
+    - --admin-port={{ $liveCheck.adminPort | default 4320 }}
+    - --inactivity-timeout={{ $liveCheck.inactivityTimeout | default 0 }}
+    {{- if $liveCheck.extraArgs }}
+    {{- toYaml $liveCheck.extraArgs | nindent 4 }}
+    {{- end }}
+    ports:
+    - name: weaver-otlp
+      containerPort: {{ $liveCheck.otlpGrpcPort | default 5123 }}
+    - name: weaver-admin
+      containerPort: {{ $liveCheck.adminPort | default 4320 }}
+    volumeMounts:
+    - name: weaver-registry
+      mountPath: /registry
+      readOnly: true
+  {{- end }}
   volumes:
   - name: config
     configMap:
@@ -91,6 +122,11 @@ spec:
       items:
       - key: {{ .Values.configMap.key }}
         path: config.yaml
+  {{- if .Values.weaver.registry.existingName }}
+  - name: weaver-registry
+    configMap:
+      name: {{ .Values.weaver.registry.existingName }}
+  {{- end }}
   {{- if .Values.extraVolumes }}
   {{- toYaml .Values.extraVolumes | nindent 2 }}
   {{- end }}
