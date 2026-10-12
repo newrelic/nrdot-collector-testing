@@ -158,6 +158,26 @@ tests:
           path: spec.template.spec.initContainers[0].startupProbe.exec.command
           value: ["nc", "-z", "127.0.0.1", "6000"]
 
+  - it: should add extraArgs as live check arguments
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      weaver:
+        registry:
+          existingName: test-registry
+        liveCheck:
+          extraArgs:
+            - --advice-policies=/registry/policies
+            - --templates=/registry/templates
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[0].args
+          content: --advice-policies=/registry/policies
+      - contains:
+          path: spec.template.spec.initContainers[0].args
+          content: --templates=/registry/templates
+
   - it: should probe for weaver's readiness before startup
     set:
       mode: daemonset
