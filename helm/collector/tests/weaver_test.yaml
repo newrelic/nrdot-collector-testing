@@ -120,6 +120,44 @@ tests:
             - name: weaver-admin
               containerPort: 4320
 
+  - it: should instantiate custom liveCheck values
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      weaver:
+        registry:
+          existingName: test-registry
+        liveCheck:
+          otlpGrpcPort: 6000
+          adminPort: 6001
+          format: yaml
+          output: /tmp/report
+          inactivityTimeout: 30
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].args
+          value:
+            - registry
+            - live-check
+            - --registry=/registry
+            - --format=yaml
+            - --output=/tmp/report
+            - --otlp-grpc-address=127.0.0.1
+            - --otlp-grpc-port=6000
+            - --admin-port=6001
+            - --inactivity-timeout=30
+      - equal:
+          path: spec.template.spec.initContainers[0].ports
+          value:
+            - name: weaver-otlp
+              containerPort: 6000
+            - name: weaver-admin
+              containerPort: 6001
+      - equal:
+          path: spec.template.spec.initContainers[0].startupProbe.exec.command
+          value: ["nc", "-z", "127.0.0.1", "6000"]
+
   - it: should probe for weaver's readiness before startup
     set:
       mode: daemonset

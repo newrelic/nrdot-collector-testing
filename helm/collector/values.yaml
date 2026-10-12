@@ -62,7 +62,7 @@ weaver:
     # format: json # yaml/jsonl/<template name> ==> Report format
     # output: http # none/<path> ==>  Report destination; http returns as response to POST
     # inactivityTimeout: 0 # seconds w/o telemetry before stopping; 0 is infinite.
-    # extraArgs: []
+    # extraArgs: [] # ==> NOTE: Weaver rejects duplicate flags, so extraArgs cannot override default or above values
 
 # Secret configuration for collector OTLP endpoint and New Relic license key
 # These will be injected as OTEL_EXPORTER_OTLP_ENDPOINT and NEW_RELIC_LICENSE_KEY env vars
