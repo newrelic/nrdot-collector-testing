@@ -42,6 +42,12 @@ spec:
       containerPort: {{ $liveCheck.otlpGrpcPort | default 5123 }}
     - name: weaver-admin
       containerPort: {{ $liveCheck.adminPort | default 4320 }}
+    startupProbe:
+      # exec rather than tcpSocket: weaver listens on localhost, which kubelet probes can't reach
+      exec:
+        command: ["nc", "-z", "127.0.0.1", "{{ $liveCheck.otlpGrpcPort | default 5123 }}"]
+      periodSeconds: 10
+      failureThreshold: 6
     volumeMounts:
     - name: weaver-registry
       mountPath: /registry

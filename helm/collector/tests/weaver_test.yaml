@@ -32,3 +32,47 @@ tests:
       - equal:
           path: spec.template.spec.initContainers[0].image
           value: custom/weaver:1.2.3
+
+  - it: should derive defaults for live check with no configuration
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      weaver:
+        registry:
+          existingName: test-registry
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].args
+          value:
+            - registry
+            - live-check
+            - --registry=/registry
+            - --config=/registry/.weaver.toml
+            - --format=json
+            - --output=http
+            - --otlp-grpc-address=127.0.0.1
+            - --otlp-grpc-port=5123
+            - --admin-port=4320
+            - --inactivity-timeout=0
+      - equal:
+          path: spec.template.spec.initContainers[0].ports
+          value:
+            - name: weaver-otlp
+              containerPort: 5123
+            - name: weaver-admin
+              containerPort: 4320
+
+  - it: should probe for weaver's readiness before startup
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      weaver:
+        registry:
+          existingName: test-registry
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].startupProbe.exec.command
+          value: ["nc", "-z", "127.0.0.1", "5123"]
+
