@@ -1,0 +1,34 @@
+suite: test weaver in daemonset
+templates:
+  - daemonset.yaml
+capabilities:
+  majorVersion: 1
+  minorVersion: 29
+tests:
+  - it: should not add any weaver containers by default
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+    asserts:
+      - isNull:
+          path: spec.template.spec.initContainers
+      - lengthEqual:
+          path: spec.template.spec.volumes
+          count: 1
+
+  - it: should use the correct weaver image
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      weaver:
+        image:
+          repository: custom/weaver
+          tag: "1.2.3"
+        registry:
+          existingName: test-registry
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: custom/weaver:1.2.3
