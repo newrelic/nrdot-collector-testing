@@ -84,7 +84,6 @@ jobs:
             --set configMap.existingName=collector-config \
             --set 'extraArgs[0]=--config=/etc/otelcol/config.yaml' \
             --set weaver.registry.existingName=weaver-registry \
-            --set weaver.registry.configKey="" \
             --set-json 'telemetrygen.signals={"metrics":{}}' \
             --wait --timeout 3m
 

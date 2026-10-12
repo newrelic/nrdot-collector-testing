@@ -17,6 +17,27 @@ tests:
           path: spec.template.spec.volumes
           count: 1
 
+  - it: should run weaver as a native sidecar, initialized before other containers
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      weaver:
+        registry:
+          existingName: test-registry
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: weaver
+      - equal:
+          path: spec.template.spec.initContainers[0].restartPolicy
+          value: Always
+      - notContains:
+          path: spec.template.spec.containers
+          content:
+            name: weaver
+          any: true
+
   - it: should use the correct weaver image
     set:
       mode: daemonset
@@ -33,6 +54,43 @@ tests:
           path: spec.template.spec.initContainers[0].image
           value: custom/weaver:1.2.3
 
+  - it: should reference the existing registry ConfigMap
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      weaver:
+        registry:
+          existingName: my-registry
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: weaver-registry
+            configMap:
+              name: my-registry
+          any: true
+      - contains:
+          path: spec.template.spec.initContainers[0].volumeMounts
+          content:
+            name: weaver-registry
+            mountPath: /registry
+          any: true
+
+  - it: should set config when a config key is provided
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      weaver:
+        registry:
+          existingName: my-registry
+          configKey: custom.toml
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[0].args
+          content: --config=/registry/custom.toml
+
   - it: should derive defaults for live check with no configuration
     set:
       mode: daemonset
@@ -48,7 +106,6 @@ tests:
             - registry
             - live-check
             - --registry=/registry
-            - --config=/registry/.weaver.toml
             - --format=json
             - --output=http
             - --otlp-grpc-address=127.0.0.1

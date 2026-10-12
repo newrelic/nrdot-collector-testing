@@ -54,8 +54,8 @@ weaver:
   registry:
     # Name of an existing ConfigMap; the sidecar is only added when set
     existingName: ""
-    # Key in the ConfigMap that contains the weaver config; --config is omitted when empty
-    configKey: ".weaver.toml"
+    # Optional key in the ConfigMap that contains the weaver config (e.g. .weaver.toml); --config is omitted when empty
+    configKey: ""
   liveCheck: {}
     # otlpGrpcPort: 5123 # OTLP receiver for telemetry (weaver only accepts GRPC)
     # adminPort: 4320 # Admin API port (post /stop to generate report)
