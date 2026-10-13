@@ -19,6 +19,21 @@ tests:
       - isNull:
           path: spec.template.spec.containers[0].env
 
+  - it: should fail when weaver is enabled on k8s < 1.29
+    capabilities:
+      majorVersion: 1
+      minorVersion: 28
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      weaver:
+        registry:
+          existingName: test-registry
+    asserts:
+      - failedTemplate:
+          errorMessage: "weaver runs as a native sidecar in init container which requires k8s >= 1.29"
+
   - it: should run weaver as a native sidecar, initialized before other containers
     set:
       mode: daemonset
@@ -226,3 +241,36 @@ tests:
             name: EXTRA_VAR
             value: extra-value
 
+
+---
+suite: test weaver in deployment
+templates:
+  - deployment.yaml
+capabilities:
+  majorVersion: 1
+  minorVersion: 29
+tests:
+  - it: should not add any weaver containers by default
+    set:
+      mode: deployment
+      configMap:
+        existingName: test-configmap
+    asserts:
+      - isNull:
+          path: spec.template.spec.initContainers
+
+  - it: should run weaver as a native sidecar when a registry is provided
+    set:
+      mode: deployment
+      configMap:
+        existingName: test-configmap
+      weaver:
+        registry:
+          existingName: test-registry
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: weaver
+      - equal:
+          path: spec.template.spec.initContainers[0].restartPolicy
+          value: Always
