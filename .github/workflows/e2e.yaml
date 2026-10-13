@@ -1,4 +1,4 @@
-name: Validate telemetrygen
+name: E2E Tests
 
 on:
   pull_request:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   e2e:
-    name: Verify telemetrygen and weaver run end-to-end in helm chart
+    name: Validate telemetrygen, collector and weaver interoperability
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

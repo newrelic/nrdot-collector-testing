@@ -108,7 +108,7 @@ tests:
             - --registry=/registry
             - --format=json
             - --output=http
-            - --otlp-grpc-address=127.0.0.1
+            - --otlp-grpc-address=0.0.0.0
             - --otlp-grpc-port=5123
             - --admin-port=4320
             - --inactivity-timeout=0
@@ -143,7 +143,7 @@ tests:
             - --registry=/registry
             - --format=yaml
             - --output=/tmp/report
-            - --otlp-grpc-address=127.0.0.1
+            - --otlp-grpc-address=0.0.0.0
             - --otlp-grpc-port=6000
             - --admin-port=6001
             - --inactivity-timeout=30
@@ -154,9 +154,6 @@ tests:
               containerPort: 6000
             - name: weaver-admin
               containerPort: 6001
-      - equal:
-          path: spec.template.spec.initContainers[0].startupProbe.exec.command
-          value: ["nc", "-z", "127.0.0.1", "6000"]
 
   - it: should add extraArgs as live check arguments
     set:
@@ -188,6 +185,8 @@ tests:
           existingName: test-registry
     asserts:
       - equal:
-          path: spec.template.spec.initContainers[0].startupProbe.exec.command
-          value: ["nc", "-z", "127.0.0.1", "5123"]
+          path: spec.template.spec.initContainers[0].startupProbe.httpGet
+          value:
+            path: /health
+            port: weaver-admin
 

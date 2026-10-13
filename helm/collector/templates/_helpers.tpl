@@ -30,7 +30,7 @@ spec:
     {{- end }}
     - --format={{ $liveCheck.format | default "json" }}
     - --output={{ $liveCheck.output | default "http" }}
-    - --otlp-grpc-address=127.0.0.1
+    - --otlp-grpc-address=0.0.0.0
     - --otlp-grpc-port={{ $liveCheck.otlpGrpcPort | default 5123 }}
     - --admin-port={{ $liveCheck.adminPort | default 4320 }}
     - --inactivity-timeout={{ $liveCheck.inactivityTimeout | default 0 }}
@@ -43,9 +43,9 @@ spec:
     - name: weaver-admin
       containerPort: {{ $liveCheck.adminPort | default 4320 }}
     startupProbe:
-      # exec rather than tcpSocket: weaver listens on localhost, which kubelet probes can't reach
-      exec:
-        command: ["nc", "-z", "127.0.0.1", "{{ $liveCheck.otlpGrpcPort | default 5123 }}"]
+      httpGet:
+        path: /health
+        port: weaver-admin
       periodSeconds: 10
       failureThreshold: 6
     volumeMounts:
