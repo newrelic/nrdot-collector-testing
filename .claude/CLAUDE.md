@@ -8,10 +8,12 @@
 
 - Any modification to chart templates (`helm/collector/templates/*.yaml`) requires a new test or modification to existing tests in `helm/collector/tests/*_test.yaml`
 - Tests use the helm-unittest plugin syntax
-- Test files are organized by template:
+- Test files are organized by template or feature:
   - `daemonset_test.yaml` - Tests for DaemonSet template
   - `deployment_test.yaml` - Tests for Deployment template
   - `secret_test.yaml` - Tests for Secret template and env var injection
+  - `telemetrygen_test.yaml` - Tests for telemetrygen containers in both modes
+  - `weaver_test.yaml` - Tests for the weaver sidecar in both modes
 - Tests should cover:
   - Default behavior
   - Edge cases (empty values, missing optional fields)

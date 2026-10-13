@@ -1,4 +1,4 @@
-name: Validate telemetrygen
+name: E2E Tests
 
 on:
   pull_request:
@@ -13,8 +13,8 @@ permissions:
   contents: read
 
 jobs:
-  telemetrygen:
-    name: Verify telemetrygen produces telemetry in helm chart
+  e2e:
+    name: Validate telemetrygen, collector and weaver interoperability
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -42,11 +42,16 @@ jobs:
           exporters:
             debug:
               verbosity: detailed
+            otlp:
+              endpoint: ${env:WEAVER_OTLP_ENDPOINT}
+              compression: none
+              tls:
+                insecure: true
           service:
             pipelines:
               metrics:
                 receivers: [otlp]
-                exporters: [debug]
+                exporters: [debug, otlp]
               logs:
                 receivers: [otlp]
                 exporters: [debug]
@@ -56,20 +61,53 @@ jobs:
           EOF
           kubectl create configmap collector-config --from-file=config.yaml=/tmp/config.yaml
 
+      - name: Create weaver test registry
+        run: |
+          mkdir -p /tmp/registry
+          # matches telemetrygen's defaults
+          cat <<'EOF' > /tmp/registry/registry.yaml
+          groups:
+            - id: registry.service
+              type: attribute_group
+              brief: "Service attributes."
+              attributes:
+                - id: service.name
+                  type: string
+                  stability: stable
+                  brief: "Logical name of the service."
+                  examples: ["telemetrygen-metrics"]
+
+            - id: metric.gen
+              type: metric
+              metric_name: gen
+              stability: stable
+              brief: "telemetrygen's default gauge."
+              instrument: gauge
+              unit: ""
+          EOF
+          kubectl create configmap weaver-registry --from-file=/tmp/registry
+
       - name: Install chart
         run: |
           helm install telemetrygen-test helm/collector \
             --set mode=deployment \
             --set configMap.existingName=collector-config \
             --set 'extraArgs[0]=--config=/etc/otelcol/config.yaml' \
+            --set weaver.registry.existingName=weaver-registry \
             --set-json 'telemetrygen.signals={"metrics":{},"logs":{},"traces":{"extraArgs":["--rate=5"]}}' \
             --set-json 'telemetrygen.signals.metrics.extraArgs=["--otlp-attributes=service.name=\"override-works\""]' \
             --wait --timeout 3m
 
+      - name: Port-forward weaver admin port
+        run: kubectl port-forward deploy/telemetrygen-test-collector 4320:4320 &
+
       - name: Wait for telemetry to arrive
         run: sleep 45
 
-      - name: Assert Metric, Log, and Trace signals reached the collector
+      - name: Stop weaver and fetch report
+        run: curl -sS --fail-with-body -X POST http://localhost:4320/stop | jq . > /tmp/report.json
+
+      - name: Assert telemetrygen signals (metrics, logs, traces) reached the collector
         run: |
           logs=$(kubectl logs -l app.kubernetes.io/name=collector -c collector --tail=-1)
           failed=0
@@ -83,7 +121,7 @@ jobs:
           done
           exit $failed
 
-      - name: Assert extraArgs overrides defaults
+      - name: Assert telemetrygen extraArgs override defaults
         run: |
           failed=0
           if ! kubectl logs -l app.kubernetes.io/name=collector -c telemetrygen-traces --tail=-1 | grep -q '"per-second": 5'; then
@@ -96,9 +134,14 @@ jobs:
           fi
           exit $failed
 
+      - name: Assert full weaver coverage and no violations
+        run: |
+          jq -e '.statistics.registry_coverage >= 1.0' /tmp/report.json
+          jq -e '(.statistics.advice_level_counts.violation // 0) == 0' /tmp/report.json
+
       - name: Dump state on failure
         if: failure()
         run: |
           kubectl get pods -o wide
           kubectl describe pods -l app.kubernetes.io/name=collector
-          kubectl logs -l app.kubernetes.io/name=collector --all-containers --tail=100
+          kubectl logs -l app.kubernetes.io/name=collector --all-containers --prefix --tail=100

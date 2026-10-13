@@ -1,0 +1,276 @@
+suite: test weaver in daemonset
+templates:
+  - daemonset.yaml
+capabilities:
+  majorVersion: 1
+  minorVersion: 29
+tests:
+  - it: should not add any weaver containers by default
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+    asserts:
+      - isNull:
+          path: spec.template.spec.initContainers
+      - lengthEqual:
+          path: spec.template.spec.volumes
+          count: 1
+      - isNull:
+          path: spec.template.spec.containers[0].env
+
+  - it: should fail when weaver is enabled on k8s < 1.29
+    capabilities:
+      majorVersion: 1
+      minorVersion: 28
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      weaver:
+        registry:
+          existingName: test-registry
+    asserts:
+      - failedTemplate:
+          errorMessage: "weaver runs as a native sidecar in init container which requires k8s >= 1.29"
+
+  - it: should run weaver as a native sidecar, initialized before other containers
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      weaver:
+        registry:
+          existingName: test-registry
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: weaver
+      - equal:
+          path: spec.template.spec.initContainers[0].restartPolicy
+          value: Always
+      - notContains:
+          path: spec.template.spec.containers
+          content:
+            name: weaver
+          any: true
+
+  - it: should use the correct weaver image
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      weaver:
+        image:
+          repository: custom/weaver
+          tag: "1.2.3"
+        registry:
+          existingName: test-registry
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].image
+          value: custom/weaver:1.2.3
+
+  - it: should reference the existing registry ConfigMap
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      weaver:
+        registry:
+          existingName: my-registry
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: weaver-registry
+            configMap:
+              name: my-registry
+          any: true
+      - contains:
+          path: spec.template.spec.initContainers[0].volumeMounts
+          content:
+            name: weaver-registry
+            mountPath: /registry
+          any: true
+
+  - it: should set config when a config key is provided
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      weaver:
+        registry:
+          existingName: my-registry
+          configKey: custom.toml
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[0].args
+          content: --config=/registry/custom.toml
+
+  - it: should derive defaults for live check with no configuration
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      weaver:
+        registry:
+          existingName: test-registry
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].args
+          value:
+            - registry
+            - live-check
+            - --registry=/registry
+            - --format=json
+            - --output=http
+            - --otlp-grpc-address=0.0.0.0
+            - --otlp-grpc-port=5123
+            - --admin-port=4320
+            - --inactivity-timeout=0
+      - equal:
+          path: spec.template.spec.initContainers[0].ports
+          value:
+            - name: weaver-otlp
+              containerPort: 5123
+            - name: weaver-admin
+              containerPort: 4320
+
+  - it: should instantiate custom liveCheck values
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      weaver:
+        registry:
+          existingName: test-registry
+        liveCheck:
+          otlpGrpcPort: 6000
+          adminPort: 6001
+          format: yaml
+          output: /tmp/report
+          inactivityTimeout: 30
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].args
+          value:
+            - registry
+            - live-check
+            - --registry=/registry
+            - --format=yaml
+            - --output=/tmp/report
+            - --otlp-grpc-address=0.0.0.0
+            - --otlp-grpc-port=6000
+            - --admin-port=6001
+            - --inactivity-timeout=30
+      - equal:
+          path: spec.template.spec.initContainers[0].ports
+          value:
+            - name: weaver-otlp
+              containerPort: 6000
+            - name: weaver-admin
+              containerPort: 6001
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: WEAVER_OTLP_ENDPOINT
+            value: "127.0.0.1:6000"
+
+  - it: should add extraArgs as live check arguments
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      weaver:
+        registry:
+          existingName: test-registry
+        liveCheck:
+          extraArgs:
+            - --advice-policies=/registry/policies
+            - --templates=/registry/templates
+    asserts:
+      - contains:
+          path: spec.template.spec.initContainers[0].args
+          content: --advice-policies=/registry/policies
+      - contains:
+          path: spec.template.spec.initContainers[0].args
+          content: --templates=/registry/templates
+
+  - it: should probe for weaver's readiness before startup
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      weaver:
+        registry:
+          existingName: test-registry
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].startupProbe.httpGet
+          value:
+            path: /health
+            port: weaver-admin
+
+  - it: should expose weaver's OTLP endpoint to the collector and preserve other env vars
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      serviceName: my-service
+      extraEnvs:
+        - name: EXTRA_VAR
+          value: extra-value
+      weaver:
+        registry:
+          existingName: test-registry
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: WEAVER_OTLP_ENDPOINT
+            value: "127.0.0.1:5123"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SERVICE_NAME
+            value: my-service
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: EXTRA_VAR
+            value: extra-value
+
+
+---
+suite: test weaver in deployment
+templates:
+  - deployment.yaml
+capabilities:
+  majorVersion: 1
+  minorVersion: 29
+tests:
+  - it: should not add any weaver containers by default
+    set:
+      mode: deployment
+      configMap:
+        existingName: test-configmap
+    asserts:
+      - isNull:
+          path: spec.template.spec.initContainers
+
+  - it: should run weaver as a native sidecar when a registry is provided
+    set:
+      mode: deployment
+      configMap:
+        existingName: test-configmap
+      weaver:
+        registry:
+          existingName: test-registry
+    asserts:
+      - equal:
+          path: spec.template.spec.initContainers[0].name
+          value: weaver
+      - equal:
+          path: spec.template.spec.initContainers[0].restartPolicy
+          value: Always
