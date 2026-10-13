@@ -10,11 +10,11 @@ metadata:
     {{ $key }}: {{ $value }}
 {{- end }}
 spec:
+  {{- $liveCheck := .Values.weaver.liveCheck | default dict }}
   {{- if .Values.weaver.registry.existingName }}
   {{- if semverCompare "<1.29-0" .Capabilities.KubeVersion.Version }}
   {{- fail "weaver runs as a native sidecar in init container which requires k8s >= 1.29" }}
   {{- end }}
-  {{- $liveCheck := .Values.weaver.liveCheck | default dict }}
   # native sidecar: starts before the collector and runs for the pod's lifetime
   initContainers:
   - name: weaver
@@ -61,7 +61,7 @@ spec:
     args:
       {{- toYaml .Values.extraArgs | nindent 6 }}
     {{- end }}
-    {{- if or .Values.extraEnvs .Values.secret.otlpEndpoint .Values.secret.licenseKey .Values.scenarioTag .Values.serviceName }}
+    {{- if or .Values.extraEnvs .Values.secret.otlpEndpoint .Values.secret.licenseKey .Values.scenarioTag .Values.serviceName .Values.weaver.registry.existingName }}
     env:
       {{- if .Values.secret.otlpEndpoint }}
       - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -84,6 +84,10 @@ spec:
       {{- if .Values.serviceName }}
       - name: SERVICE_NAME
         value: {{ .Values.serviceName | quote }}
+      {{- end }}
+      {{- if .Values.weaver.registry.existingName }}
+      - name: WEAVER_OTLP_ENDPOINT
+        value: "127.0.0.1:{{ $liveCheck.otlpGrpcPort | default 5123 }}"
       {{- end }}
       {{- if .Values.extraEnvs }}
       {{- toYaml .Values.extraEnvs | nindent 6 }}

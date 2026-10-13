@@ -43,7 +43,7 @@ jobs:
             debug:
               verbosity: detailed
             otlp:
-              endpoint: 127.0.0.1:5123
+              endpoint: ${env:WEAVER_OTLP_ENDPOINT}
               compression: none
               tls:
                 insecure: true

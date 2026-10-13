@@ -16,6 +16,8 @@ tests:
       - lengthEqual:
           path: spec.template.spec.volumes
           count: 1
+      - isNull:
+          path: spec.template.spec.containers[0].env
 
   - it: should run weaver as a native sidecar, initialized before other containers
     set:
@@ -154,6 +156,11 @@ tests:
               containerPort: 6000
             - name: weaver-admin
               containerPort: 6001
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: WEAVER_OTLP_ENDPOINT
+            value: "127.0.0.1:6000"
 
   - it: should add extraArgs as live check arguments
     set:
@@ -189,4 +196,33 @@ tests:
           value:
             path: /health
             port: weaver-admin
+
+  - it: should expose weaver's OTLP endpoint to the collector and preserve other env vars
+    set:
+      mode: daemonset
+      configMap:
+        existingName: test-configmap
+      serviceName: my-service
+      extraEnvs:
+        - name: EXTRA_VAR
+          value: extra-value
+      weaver:
+        registry:
+          existingName: test-registry
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: WEAVER_OTLP_ENDPOINT
+            value: "127.0.0.1:5123"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: SERVICE_NAME
+            value: my-service
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: EXTRA_VAR
+            value: extra-value
 
