@@ -105,7 +105,7 @@ jobs:
         run: sleep 45
 
       - name: Stop weaver and fetch report
-        run: curl -sS --fail-with-body -X POST http://localhost:4320/stop | jq . > /tmp/report.json
+        run: curl -sS --fail-with-body -X POST http://localhost:4320/stop -o /tmp/report.json
 
       - name: Assert telemetrygen signals (metrics, logs, traces) reached the collector
         run: |

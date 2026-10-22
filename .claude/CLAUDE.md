@@ -27,7 +27,7 @@
 #### Default Versioning Strategy
 - **Default to minor version bumps** (e.g., 0.1.0 → 0.2.0)
 - Only use patch or major version bumps when specifically requested
-- Current version: 0.2.0
+- For the current version, refer to `version` in `helm/collector/Chart.yaml`
 
 ### Running Tests
 
